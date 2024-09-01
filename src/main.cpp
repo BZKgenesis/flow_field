@@ -2,7 +2,6 @@
 #include <iostream>
 #include <cstdio>
 #include <vector>
-#include "spline.h"
 
 const int H = 1024;
 const int W = 1024;
@@ -19,7 +18,7 @@ int nOutputWidth = 64;
 int nOutputHeight = 64;
 float* fNoiseSeed2D = nullptr;
 float* fPerlinNoise2D = nullptr;
-sf::Vector2f* vector_field = nullptr;
+std::vector<sf::Vector2f> vector_field;
 
 int maxOctave = 8;
 
@@ -40,11 +39,11 @@ public:
     sf::Vector2f vel;
     float size;
     sf::Vector2f acc = sf::Vector2f(0, 0);
-    sf::Color color = sf::Color(255,0,0,10);
+    sf::Color color = sf::Color(255,0,0,100);
     Particle(sf::Vector2f position, sf::Vector2f velocity, float size) : pos(position), vel(velocity), size(size) {};
 
 
-    void draw(sf::RenderWindow& win) {
+    void draw(sf::RenderWindow& win) const {
         sf::CircleShape circle = sf::CircleShape(size);
         circle.setPosition(pos);
         circle.setFillColor(color);
@@ -58,7 +57,12 @@ public:
     }
 
     void update(float dt) {
+		//std::cout << (int)((pos.y / H) * nOutputHeight) * nOutputWidth + (int)((pos.x / W) * nOutputWidth) << std::endl;
+		//std::cout << vector_field.size() << std::endl;
+        if ((int)((pos.y / H) * nOutputHeight) * nOutputWidth + (int)((pos.x / W) * nOutputWidth) > 4095)
+            return;
         acc = vector_field[(int)((pos.y / H) * nOutputHeight) * nOutputWidth + (int)((pos.x / W) * nOutputWidth)] * mouvementSpeed;
+		//std::cout << acc.x << "   " << acc.y << std::endl;
         vel += acc * dt;
         float lenght = sqrt(vel.x * vel.x + vel.y * vel.y);
         if (lenght > 20) {
@@ -80,7 +84,7 @@ public:
     }
 };
 
-void PerlinNoise1D(int nCount, float *fSeed, int nOctaves,float fBiaf ,float *fOutput) {
+static void PerlinNoise1D(int nCount, float *fSeed, int nOctaves,float fBiaf ,float *fOutput) {
     for (int x = 0; x < nCount; x++) {
         float fNoise = 0.0f;
         float fScale = 1.0f;
@@ -102,7 +106,7 @@ void PerlinNoise1D(int nCount, float *fSeed, int nOctaves,float fBiaf ,float *fO
     }
 }
 
-void PerlinNoise2D(int nWidth,int nHeight, float* fSeed, int nOctaves, float fBiaf, sf::Vector2f* vector_field) {
+static void PerlinNoise2D(int nWidth,int nHeight, float* fSeed, int nOctaves, float fBiaf, std::vector<sf::Vector2f>& vector_field) {
     for (int x = 0; x < nWidth; x++) {
         for (int y = 0; y < nHeight; y++) {
             float fNoise = 0.0f;
@@ -130,7 +134,8 @@ void PerlinNoise2D(int nWidth,int nHeight, float* fSeed, int nOctaves, float fBi
 
             }
             float val = fNoise / fScaleAcc;
-            vector_field[y * nWidth + x] = sf::Vector2f(cos(val * 3.1415f * 2), sin(val * 3.1415f * 2));
+            //std::cout << x*nWidth + y << "   " << vector_field.size() << std::endl;
+            vector_field.push_back( sf::Vector2f(cos(val * 3.1415f * 2), sin(val * 3.1415f * 2)));
         }
     }
 }
@@ -142,7 +147,7 @@ int main()
     }
     sf::Clock deltaClock;
 
-    vector_field = new sf::Vector2f[nOutputWidth * nOutputHeight];
+    //vector_field.reserve(nOutputWidth * nOutputHeight + 1);
 
     fNoiseSeed1D = new float[arraySize];
     fPerlinNoise1D = new float[arraySize];
